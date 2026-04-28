@@ -1,0 +1,30 @@
+schema_version: "1.0"
+
+name: "wagmi/v1-to-v2"
+version: "1.0.0"
+description: "Migrate wagmi v1 to v2. Automates hook renames, provider changes, connector refactors, query param restructuring, and more. Covers ~85% of the migration deterministically with an AI step for edge cases."
+license: "MIT"
+workflow: "workflow.yaml"
+category: "migration"
+
+targets:
+  languages: ["tsx", "typescript"]
+
+keywords:
+  - "upgrade"
+  - "breaking-change"
+  - "v1-to-v2"
+  - "wagmi"
+  - "react"
+  - "web3"
+  - "ethereum"
+  - "defi"
+  - "viem"
+  - "tanstack-query"
+
+registry:
+  access: "public"
+  visibility: "public"
+
+capabilities:
+  - "ai"

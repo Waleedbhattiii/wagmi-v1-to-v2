@@ -1,0 +1,205 @@
+version: "1.0.0"
+
+nodes:
+  - id: wagmi-v1-to-v2
+    name: "Migrate wagmi v1 to v2"
+    type: automatic
+    steps:
+      - name: "Rename deprecated hooks"
+        js-ast-grep:
+          js_file: "scripts/01-rename-hooks.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Rename WagmiConfig to WagmiProvider"
+        js-ast-grep:
+          js_file: "scripts/02-rename-wagmi-provider.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Replace prepare hooks"
+        js-ast-grep:
+          js_file: "scripts/03-replace-prepare-hooks.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Move TanStack Query params into query property"
+        js-ast-grep:
+          js_file: "scripts/04-move-query-params.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Remove watch prop"
+        js-ast-grep:
+          js_file: "scripts/05-remove-watch-prop.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Rename connectors"
+        js-ast-grep:
+          js_file: "scripts/06-rename-connectors.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Rename config API and useNetwork"
+        js-ast-grep:
+          js_file: "scripts/07-rename-config-api.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "Clean up stale wagmi v1 imports"
+        js-ast-grep:
+          js_file: "scripts/08-cleanup-imports.ts"
+          language: "tsx"
+          include: ["**/*.ts","**/*.tsx","**/*.js","**/*.jsx"]
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/.next/**"
+            - "**/build/**"
+            - "**/out/**"
+            - "**/.turbo/**"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.d.ts"
+            - "**/generated/**"
+            - "**/__mocks__/**"
+
+      - name: "AI: resolve remaining TODO(wagmi-codemod) patterns"
+        ai:
+          prompt: |
+            You are migrating a React/TypeScript codebase from wagmi v1 to v2.
+            The deterministic codemod has already handled all mechanical renames.
+            This file contains TODO(wagmi-codemod) comments. Fix each one:
+
+            1. TODO: 'watch' prop removed
+               Replace with useBlockNumber + useEffect pattern:
+               const { data: blockNumber } = useBlockNumber({ watch: true })
+               useEffect(() => { refetch() }, [blockNumber])
+
+            2. TODO: configureChains removed
+               Replace with Viem http transports in createConfig:
+               import { http } from 'viem'
+               createConfig({ chains: [...], transports: { [chain.id]: http('RPC_URL') } })
+
+            3. TODO: prepare hook destructuring
+               Rename config → data, pass data.request to writeContract:
+               const { data } = useSimulateContract({...})
+               const { writeContract } = useWriteContract()
+               // call: writeContract(data.request)
+
+            4. TODO: useSwitchChain return shape
+               switchNetwork → switchChain, switchNetworkAsync → switchChainAsync
+
+            5. TODO: useWalletClient return type
+               Result is Viem WalletClient not ethers Signer. Update usages.
+
+            6. TODO: useWriteContract return shape
+               write → writeContract, writeAsync → writeContractAsync
+
+            7. TODO: useChainId returns number
+               chain.id → chainId. chain.name needs lookup from chains config.
+
+            Only fix TODO(wagmi-codemod) comments. Do not touch other code.
+            Remove each TODO comment after fixing it.
+            If unsure, leave the TODO in place.
