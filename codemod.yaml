@@ -1,6 +1,6 @@
 schema_version: "1.0"
 
-name: "wagmi/v1-to-v2"
+name: "wagmi-v1-to-v2"
 version: "1.0.0"
 author: "Waleedbhattiii"
 description: "Migrate wagmi v1 to v2. Automates hook renames, provider changes, connector refactors, query param restructuring, and more. Covers ~85% of the migration deterministically with an AI step for edge cases."
