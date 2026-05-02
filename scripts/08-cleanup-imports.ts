@@ -4,30 +4,41 @@ import type TSX from "codemod:ast-grep/langs/tsx";
 /**
  * Transform 08: Remove stale wagmi v1 import specifiers.
  *
- * Fixes:
- * - Uses lastIndexOf("}") for multiline import parsing (not regex /\{([^}]+)\}/)
- * - Handles `type` imports: `type WagmiConfig` and `import type { WagmiConfig }`
- * - specifierName() helper strips type keyword and aliases before checking STALE
+ * IMPORTANT: Only removes specifiers that have NO v2 equivalent rename.
+ * Hooks that ARE renamed by transform 01 (like useSwitchNetwork → useSwitchChain)
+ * must NOT be in this list — transform 01 already renamed them in the import.
+ * Adding them here would remove the already-renamed v2 specifier.
+ *
+ * Only include hooks that are:
+ * - Completely removed with no direct rename (configureChains, useNetwork)
+ * - Already handled by another transform that also fixes the import
+ *   (usePrepareContractWrite → renamed by 03, WagmiConfig → renamed by 02)
  */
 
 const STALE = new Set([
+  // Renamed by transform 02 (WagmiConfig → WagmiProvider in import too)
   "WagmiConfig",
-  "useContractRead",
-  "useContractWrite",
-  "useContractEvent",
-  "useContractInfiniteReads",
-  "useContractReads",
-  "useWaitForTransaction",
-  "useSwitchNetwork",
-  "useSigner",
-  "useProvider",
-  "useWebSocketProvider",
-  "useFeeData",
+  // Renamed by transform 03
   "usePrepareContractWrite",
   "usePrepareSendTransaction",
+  // Removed by transform 07 (no rename, just deleted from import)
   "useNetwork",
-  "createClient",
   "configureChains",
+  // createClient renamed to createConfig by transform 07 import rebuild
+  "createClient",
+  // NOTE: The following are intentionally NOT here because transform 01
+  // renames them in-place in the import specifier:
+  // useSwitchNetwork → useSwitchChain (handled by 01)
+  // useContractRead → useReadContract (handled by 01)
+  // useContractWrite → useWriteContract (handled by 01)
+  // useContractEvent → useWatchContractEvent (handled by 01)
+  // useContractReads → useReadContracts (handled by 01)
+  // useContractInfiniteReads → useInfiniteReadContracts (handled by 01)
+  // useWaitForTransaction → useWaitForTransactionReceipt (handled by 01)
+  // useSigner → useWalletClient (handled by 01)
+  // useProvider → usePublicClient (handled by 01)
+  // useWebSocketProvider → usePublicClient (handled by 01)
+  // useFeeData → useEstimateFeesPerGas (handled by 01)
 ]);
 
 export function getSelector() {
@@ -45,10 +56,6 @@ export function getSelector() {
   };
 }
 
-/**
- * Parse import specifiers correctly from import text.
- * Uses lastIndexOf to handle multiline imports.
- */
 function parseSpecifiers(importText: string): string[] {
   const start = importText.indexOf("{");
   const end = importText.lastIndexOf("}");
@@ -60,10 +67,6 @@ function parseSpecifiers(importText: string): string[] {
     .filter(Boolean);
 }
 
-/**
- * Extract the bare identifier name from a specifier.
- * Handles: "useAccount", "type useAccount", "useAccount as ua", "type useAccount as ua"
- */
 function specifierName(spec: string): string {
   return spec
     .replace(/^type\s+/, "")
@@ -74,7 +77,6 @@ function specifierName(spec: string): string {
 const transform: Transform<TSX> = (root) => {
   const rootNode = root.root();
 
-  // Handle both regular and type-only imports
   const wagmiImport = rootNode.find({
     rule: {
       any: [
@@ -90,24 +92,20 @@ const transform: Transform<TSX> = (root) => {
 
   const importText = wagmiImport.text();
   const specifiers = parseSpecifiers(importText);
-
   const remaining = specifiers.filter((s) => !STALE.has(specifierName(s)));
 
-  // Nothing to remove
   if (remaining.length === specifiers.length) return null;
 
   const edits: { startPos: number; endPos: number; insertedText: string }[] = [];
   const range = wagmiImport.range();
 
   if (remaining.length === 0) {
-    // Remove the entire import statement (including trailing newline)
     edits.push({
       startPos: range.start.index,
       endPos: range.end.index + 1,
       insertedText: "",
     });
   } else {
-    // Rebuild import with only non-stale specifiers
     const isTypeImport = importText.trimStart().startsWith("import type");
     const typeKeyword = isTypeImport ? "type " : "";
     const quote = importText.includes(`'wagmi'`) ? "'" : '"';

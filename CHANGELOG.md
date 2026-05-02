@@ -1,6 +1,25 @@
 # Changelog
 
-All notable changes to the `wagmi/v1-to-v2` codemod are documented here.
+## [1.0.1] - 2026-04-29
+
+### Fixed
+- Transform 08: Removed hooks from STALE set that transform 01 already renames
+  in-place (useSwitchNetwork, useContractRead, etc.) — prevented a bug where
+  useSwitchChain would be called in code but not present in the import
+- Transform 04: Removed `<`/`>` from depth tracking — prevents false splits
+  caused by JSX elements or TypeScript comparison operators in hook args
+- Transform 04: Fixed escape sequence handling in string-aware comma splitting
+- Transform 01: Added detailed TODO for useContractWrite explaining that the
+  entire contract config args must move from hook to writeContract() call site
+- Transform 01: Added TODO for useWaitForTransactionReceipt hash type change
+  (string → 0x${string})
+- codemod.yaml: Fixed name to waleedbhattiii-wagmi-v1-to-v2, removed invalid
+  capabilities field, bumped version to 1.0.1
+
+### Added
+- README: Complete rewrite with correct package name, accurate test commands,
+  real-world benchmark results, and full what's-manual list
+- Tests: write-contract-shape fixture for useContractWrite return shape TODO
 
 ## [1.0.0] - 2026-04-26
 
@@ -10,46 +29,16 @@ First production release of the wagmi v1 → v2 migration codemod.
 
 #### What's automated (8 transforms)
 
-- **Hook renames**: All deprecated wagmi v1 hooks renamed to their v2 equivalents
-  - `useContractRead` → `useReadContract`
-  - `useContractWrite` → `useWriteContract`
-  - `useContractEvent` → `useWatchContractEvent`
-  - `useContractReads` → `useReadContracts`
-  - `useContractInfiniteReads` → `useInfiniteReadContracts`
-  - `useWaitForTransaction` → `useWaitForTransactionReceipt`
-  - `useSwitchNetwork` → `useSwitchChain`
-  - `useSigner` → `useWalletClient`
-  - `useProvider` → `usePublicClient`
-  - `useWebSocketProvider` → `usePublicClient`
-  - `useFeeData` → `useEstimateFeesPerGas`
-
+- **Hook renames**: All deprecated wagmi v1 hooks renamed to v2 equivalents
 - **Provider rename**: `<WagmiConfig>` → `<WagmiProvider>`
-
-- **Prepare hooks**: `usePrepareContractWrite` → `useSimulateContract`, `usePrepareSendTransaction` → `useEstimateGas`
-
-- **Query params**: `enabled`, `staleTime`, `cacheTime` etc. moved into `query: {}` property
-
-- **Watch prop**: Removed from hooks that dropped it in v2 (preserved on `useBlockNumber` and `useBlock`)
-
-- **Connectors**: `new MetaMaskConnector({ chains })` → `metaMask()`, etc.
-
-- **Config API**: `createClient` → `createConfig`, `useNetwork` → `useChainId`/`useChains`, `configureChains` flagged with TODO
-
-- **Import cleanup**: Removes stale v1 import specifiers
-
-#### What requires AI/manual work (flagged with TODO)
-
-- `configureChains` → Viem transport setup (provider-specific)
-- `watch: true` removal → `useBlockNumber + useEffect` pattern
-- `usePrepareContractWrite` destructuring → `config` → `data.request`
-- `useNetwork().chain` → `useChainId()` returns number not Chain object
-- `useSwitchChain` return shape → `switchNetwork` → `switchChain`
-- `useWalletClient` return type → Viem `WalletClient` not ethers `Signer`
+- **Prepare hooks**: `usePrepareContractWrite` → `useSimulateContract`
+- **Query params**: `enabled`, `staleTime`, etc. moved into `query: {}`
+- **Watch prop**: Removed (preserved on `useBlockNumber` and `useBlock`)
+- **Connectors**: Class instantiation → factory functions
+- **Config API**: `createClient` → `createConfig`, `useNetwork` → `useChainId`/`useChains`
+- **Import cleanup**: Stale v1 specifiers removed (multiline + type imports)
 
 #### Coverage
 
-Tested on official wagmi v1 examples (`wevm/wagmi@1.x` branch):
-- 27 files scanned
-- 10 files changed automatically
-- ~85% of migration patterns automated
-- 5 TODO comments added for AI/manual resolution
+Tested on official wagmi v1 examples (`wevm/wagmi@1.x`):
+- 27 files scanned, 10 changed, ~85% automated, 0 false positives

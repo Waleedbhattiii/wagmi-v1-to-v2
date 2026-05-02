@@ -4,11 +4,9 @@ import type TSX from "codemod:ast-grep/langs/tsx";
 /**
  * Transform 01: Rename deprecated wagmi v1 hooks to v2 equivalents.
  *
- * Safety guarantees:
- * - Only renames identifiers confirmed imported from 'wagmi'
- * - Exact text match (node.text() === oldName) prevents substring collisions
- * - Return-shape TODOs added once per hook per file, only at call sites
- * - useContractWrite gets a TODO flagging write → writeContract rename
+ * Import detection uses text-based check (importText.includes) rather than
+ * pattern matching — this correctly handles all positions (first, middle, last)
+ * and avoids $$$A/$$$B matching failures when hook is first or last specifier.
  */
 
 const HOOK_RENAMES: Record<string, string> = {
@@ -25,7 +23,6 @@ const HOOK_RENAMES: Record<string, string> = {
   useFeeData: "useEstimateFeesPerGas",
 };
 
-// Hooks where the returned object shape changed — need a TODO at the call site
 const RETURN_SHAPE_TODOS: Record<string, string> = {
   useSwitchNetwork:
     "// TODO(wagmi-codemod): useSwitchChain return shape changed.\n" +
@@ -34,38 +31,55 @@ const RETURN_SHAPE_TODOS: Record<string, string> = {
     "// TODO(wagmi-codemod): useWalletClient returns a Viem WalletClient, not an ethers Signer.\n" +
     "// Update all code that uses the result as an ethers Signer.\n",
   useContractWrite:
-    "// TODO(wagmi-codemod): useWriteContract return shape changed.\n" +
-    "// Rename: write → writeContract, writeAsync → writeContractAsync\n",
+    "// TODO(wagmi-codemod): useWriteContract API changed significantly.\n" +
+    "// 1. Rename: write → writeContract, writeAsync → writeContractAsync\n" +
+    "// 2. Contract config (address, abi, functionName, args) moves from hook args to writeContract() call site.\n" +
+    "//    Before: const { write } = useContractWrite({ address, abi, functionName }); write()\n" +
+    "//    After:  const { writeContract } = useWriteContract(); writeContract({ address, abi, functionName, args })\n",
+  useWaitForTransaction:
+    "// TODO(wagmi-codemod): useWaitForTransactionReceipt: hash type changed from string to 0x${string}.\n" +
+    "// Ensure hash is typed as `0x\${string} | undefined` not `string | undefined`.\n",
 };
 
 export function getSelector() {
   return {
     rule: {
-      // Use exact patterns to avoid substring collisions (e.g. useContractRead vs useContractReads)
-      any: Object.keys(HOOK_RENAMES).map((name) => ({
-        pattern: `${name}`,
-      })),
+      any: Object.keys(HOOK_RENAMES).map((name) => ({ pattern: name })),
     },
   };
 }
 
+/**
+ * Check if a hook name is imported from wagmi using text-based detection.
+ * This avoids $$$A/$$$B pattern failures when the hook is the first or last specifier.
+ * Uses word boundary check to avoid false positives (e.g. useContractRead vs useContractReads).
+ */
+function isImportedFromWagmi(source: string, hookName: string): boolean {
+  // Find all wagmi import statements
+  const wagmiImportRegex = /import\s+(?:type\s+)?\{([^}]+)\}\s+from\s+['"]wagmi['"]/g;
+  let match;
+  while ((match = wagmiImportRegex.exec(source)) !== null) {
+    const specifiers = match[1];
+    // Word boundary check: hookName must appear as a complete identifier
+    // Handles: "useSwitchNetwork", "useNetwork, useSwitchNetwork", "useSwitchNetwork,"
+    const specifierRegex = new RegExp(`(?:^|[,\\s])(?:type\\s+)?${hookName}(?:[,\\s]|$)`);
+    if (specifierRegex.test(specifiers)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const transform: Transform<TSX> = (root) => {
   const rootNode = root.root();
+  const source = root.source();
 
-  // Step 1: determine which hooks are actually imported from 'wagmi'
+  // Determine which hooks are imported from wagmi using reliable text-based check
   const importedFromWagmi = new Set<string>();
   for (const oldName of Object.keys(HOOK_RENAMES)) {
-    const found = rootNode.find({
-      rule: {
-        any: [
-          { pattern: `import { $$$A, ${oldName}, $$$B } from 'wagmi'` },
-          { pattern: `import { $$$A, ${oldName}, $$$B } from "wagmi"` },
-          { pattern: `import { ${oldName} } from 'wagmi'` },
-          { pattern: `import { ${oldName} } from "wagmi"` },
-        ],
-      },
-    });
-    if (found) importedFromWagmi.add(oldName);
+    if (isImportedFromWagmi(source, oldName)) {
+      importedFromWagmi.add(oldName);
+    }
   }
 
   if (importedFromWagmi.size === 0) return null;
@@ -84,14 +98,13 @@ const transform: Transform<TSX> = (root) => {
       if (seen.has(id)) continue;
       seen.add(id);
 
-      // Exact match only — prevents useContractRead matching useContractReads
+      // Exact match — prevents useContractRead matching useContractReads
       if (node.text() !== oldName) continue;
 
-      // Add return-shape TODO once per hook per file, only at call sites
+      // Add call-site TODO once per hook per file
       if (RETURN_SHAPE_TODOS[oldName] && !todosAdded.has(oldName)) {
         const parent = node.parent();
         if (parent && parent.kind() === "call_expression") {
-          // Walk up to the enclosing statement
           let stmtNode = parent.parent();
           while (stmtNode) {
             const k = stmtNode.kind();
@@ -113,7 +126,7 @@ const transform: Transform<TSX> = (root) => {
         }
       }
 
-      // Rename the identifier
+      // Rename the identifier everywhere (import specifier + call sites + type refs)
       const range = node.range();
       edits.push({
         startPos: range.start.index,

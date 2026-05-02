@@ -1,7 +1,5 @@
 import {
   WagmiConfig,
-  useContractRead,
-  useSigner,
   useNetwork,
   useAccount,
   useBalance,

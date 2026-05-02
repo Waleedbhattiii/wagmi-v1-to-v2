@@ -4,10 +4,11 @@ import type TSX from "codemod:ast-grep/langs/tsx";
 /**
  * Transform 04: Move TanStack Query params into the `query` property.
  *
- * Fixes:
- * - splitTopLevelCommas now tracks string literals to avoid splitting
- *   on commas inside string values like functionName: 'transfer,all'
- * - Dynamic indentation detection matches the file's actual style
+ * Safety:
+ * - String-aware comma splitting (ignores commas inside string values)
+ * - Does NOT track < > as depth — JSX inside hook args would break it
+ *   Instead we only track {, (, [ which are the real nesting chars in object args
+ * - Dynamic indentation detection
  */
 
 const WAGMI_QUERY_HOOKS = [
@@ -35,10 +36,10 @@ export function getSelector() {
 }
 
 /**
- * Split text by top-level commas, correctly handling:
- * - Nested braces, brackets, parens
- * - String literals (single, double, template) — commas inside strings ignored
- * - TypeScript generics < > (tracked for depth)
+ * Split text by top-level commas.
+ * Tracks: strings (single/double/template), braces, parens, brackets.
+ * Does NOT track < > — avoids false depth changes from JSX/comparison operators.
+ * Escape sequences handled correctly.
  */
 function splitTopLevelCommas(text: string): string[] {
   const parts: string[] = [];
@@ -46,32 +47,40 @@ function splitTopLevelCommas(text: string): string[] {
   let current = "";
   let inString = false;
   let stringChar = "";
+  let escaped = false;
 
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    const prev = i > 0 ? text[i - 1] : "";
 
-    // Handle string boundaries
-    if (!inString && (ch === "'" || ch === '"' || ch === "`")) {
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (inString) {
+      if (ch === "\\") {
+        escaped = true;
+        current += ch;
+        continue;
+      }
+      if (ch === stringChar) {
+        inString = false;
+        stringChar = "";
+      }
+      current += ch;
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === "`") {
       inString = true;
       stringChar = ch;
       current += ch;
       continue;
     }
-    if (inString) {
-      current += ch;
-      // Escape sequence — skip next char
-      if (ch === "\\" && prev !== "\\") continue;
-      if (ch === stringChar && prev !== "\\") {
-        inString = false;
-        stringChar = "";
-      }
-      continue;
-    }
 
-    // Track nesting depth (not inside strings)
-    if (ch === "{" || ch === "(" || ch === "[" || ch === "<") depth++;
-    else if (ch === "}" || ch === ")" || ch === "]" || ch === ">") depth--;
+    if (ch === "{" || ch === "(" || ch === "[") depth++;
+    else if (ch === "}" || ch === ")" || ch === "]") depth--;
     else if (ch === "," && depth === 0) {
       parts.push(current);
       current = "";
@@ -83,9 +92,6 @@ function splitTopLevelCommas(text: string): string[] {
   return parts;
 }
 
-/**
- * Detect indentation of a line at the given source position.
- */
 function detectIndent(source: string, pos: number): string {
   let lineStart = pos;
   while (lineStart > 0 && source[lineStart - 1] !== "\n") lineStart--;
@@ -115,8 +121,7 @@ const transform: Transform<TSX> = (root) => {
 
       const callText = call.text();
 
-      // Skip if already has query: (avoid double-processing)
-      // Use word boundary check to avoid matching "queryKey:" or similar
+      // Skip if already has query: — use word boundary to avoid queryKey: etc
       if (/\bquery\s*:/.test(callText)) continue;
 
       const openBrace = callText.indexOf("{");
@@ -133,11 +138,8 @@ const transform: Transform<TSX> = (root) => {
       for (const prop of props) {
         const trimmed = prop.trim();
         if (!trimmed) continue;
-        // Extract key: must be before first colon that is NOT inside a string
-        // Simple approach: get text before first ':' that appears before any '{' or '('
         const colonIdx = trimmed.search(/\s*:/);
         const key = (colonIdx > -1 ? trimmed.slice(0, colonIdx) : trimmed).trim();
-        // Strip any TypeScript type annotations from key (e.g. "key as Type")
         const cleanKey = key.split(" ")[0].trim();
         if (TANSTACK_PARAMS.has(cleanKey)) {
           queryProps.push(trimmed);

@@ -1,1 +1,1 @@
-import { type WagmiConfig, useAccount, type useSigner } from 'wagmi';
+import { type WagmiConfig, useAccount, type useNetwork } from 'wagmi';
