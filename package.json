@@ -1,14 +1,26 @@
 {
-  "name": "wagmi/v1-to-v2",
-  "version": "0.1.0",
-  "description": "Migrate wagmi v1 to v2",
-  "type": "module",
+  "name": "waleedbhattiii-wagmi-v1-to-v2",
+  "version": "1.0.1",
+  "description": "Migrate wagmi v1 to v2. Automates hook renames, provider changes, connector refactors, query param restructuring, and more.",
+  "license": "MIT",
   "scripts": {
-    "test": "npx codemod@latest jssg test -l typescript ./scripts/codemod.ts",
-    "check-types": "tsc --noEmit"
+    "test": "npx codemod jssg test -l tsx ./scripts/01-rename-hooks.ts ./tests/fixtures --filter rename-hooks && npx codemod jssg test -l tsx ./scripts/01-rename-hooks.ts ./tests/fixtures --filter write-contract-shape && npx codemod jssg test -l tsx ./scripts/02-rename-wagmi-provider.ts ./tests/fixtures --filter rename-provider && npx codemod jssg test -l tsx ./scripts/03-replace-prepare-hooks.ts ./tests/fixtures --filter prepare-hooks && npx codemod jssg test -l tsx ./scripts/04-move-query-params.ts ./tests/fixtures --filter query-params && npx codemod jssg test -l tsx ./scripts/05-remove-watch-prop.ts ./tests/fixtures --filter watch-prop && npx codemod jssg test -l tsx ./scripts/06-rename-connectors.ts ./tests/fixtures --filter connectors && npx codemod jssg test -l tsx ./scripts/06-rename-connectors.ts ./tests/fixtures --filter core-connectors && npx codemod jssg test -l tsx ./scripts/07-rename-config-api.ts ./tests/fixtures --filter config-api && npx codemod jssg test -l tsx ./scripts/08-cleanup-imports.ts ./tests/fixtures --filter cleanup-imports && npx codemod jssg test -l tsx ./scripts/08-cleanup-imports.ts ./tests/fixtures --filter multiline-import && npx codemod jssg test -l tsx ./scripts/08-cleanup-imports.ts ./tests/fixtures --filter type-imports"
   },
-  "devDependencies": {
-    "@codemod.com/jssg-types": "latest",
-    "typescript": "latest"
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "wagmi",
+    "codemod",
+    "migration",
+    "v1-to-v2",
+    "react",
+    "web3",
+    "ethereum",
+    "viem"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Waleedbhattiii/wagmi-v1-to-v2"
   }
 }
